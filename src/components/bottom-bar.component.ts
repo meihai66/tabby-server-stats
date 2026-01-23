@@ -92,7 +92,7 @@ import { CustomMetric } from '../config'
             width: 100%;
             box-sizing: border-box;
             backdrop-filter: blur(8px);
-            padding: 6px 12px;
+            padding: 2px 12px;
             display: flex;
             flex-wrap: wrap;
             gap: 8px 12px;
