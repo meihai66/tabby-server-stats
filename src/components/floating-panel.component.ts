@@ -32,7 +32,7 @@ import { CustomMetric } from '../config'
                  [style.height.px]="styleConfig.size">
                 <div class="chart-label">{{ 'RAM' | translate }}</div>
                 <canvas baseChart [data]="memData" [options]="chartOptions" [type]="doughnutChartType"></canvas>
-                <div class="chart-value">{{currentStats.mem | number:'1.0-0'}}%</div>
+                <div class="chart-value">{{currentStats.mem | number:'1.0-0'}}%<span class="mem-detail" *ngIf="currentStats.memTotal > 0"><br>{{formatBytes(currentStats.memUsed)}}/{{formatBytes(currentStats.memTotal)}}</span></div>
             </div>
 
             <div class="chart-wrapper" 
@@ -69,11 +69,11 @@ import { CustomMetric } from '../config'
                  [style.height.px]="styleConfig.size">
                 <div class="chart-label">{{ 'NET' | translate }}</div>
                 <div class="net-container">
-                    <div class="net-row download">
-                         <span>↓</span> {{ formatSpeed(currentStats.netRx) }}
-                    </div>
                     <div class="net-row upload">
                          <span>↑</span> {{ formatSpeed(currentStats.netTx) }}
+                    </div>
+                    <div class="net-row download">
+                         <span>↓</span> {{ formatSpeed(currentStats.netRx) }}
                     </div>
                 </div>
             </div>
@@ -105,13 +105,16 @@ import { CustomMetric } from '../config'
         
         .net-container { 
             height: 100%; width: 100%; 
-            display: flex; flex-direction: column; justify-content: center; align-items: center; 
+            display: flex; flex-direction: row; justify-content: center; align-items: center; 
+            gap: 6cqw;
             font-family: monospace; font-weight: bold;
         }
-        .net-row { font-size: 13cqw; white-space: nowrap; }
+        .net-row { font-size: 11cqw; white-space: nowrap; }
         .net-row span { display: inline-block; width: 8cqw; }
-        .download { color: #2ecc71; margin-bottom: 2cqw; }
+        .download { color: #2ecc71; }
         .upload { color: #e74c3c; }
+        
+        .chart-value .mem-detail { font-size: 0.55em; display: block; text-align: center; opacity: 0.85; font-weight: normal; }
         
         .text-value-container {
             position: absolute;
@@ -132,7 +135,7 @@ import { CustomMetric } from '../config'
 export class ServerStatsFloatingPanelComponent implements OnInit, OnDestroy {
     @ViewChildren(BaseChartDirective) charts: QueryList<BaseChartDirective> | undefined
     visible = false
-    currentStats: any = { cpu: 0, mem: 0, disk: 0, netRx: 0, netTx: 0, custom: [] }
+    currentStats: any = { cpu: 0, mem: 0, disk: 0, netRx: 0, netTx: 0, custom: [], memUsed: 0, memTotal: 0 }
     
     customMetrics: CustomMetric[] = []
     customChartsData: ChartData<'doughnut'>[] = []
@@ -222,6 +225,14 @@ export class ServerStatsFloatingPanelComponent implements OnInit, OnDestroy {
         const sizes = ['B/s', 'K/s', 'M/s', 'G/s'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    formatBytes(bytes: number): string {
+        if (bytes <= 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'K', 'M', 'G', 'T'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + sizes[i];
     }
 
     startDrag(event: MouseEvent) {

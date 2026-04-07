@@ -32,7 +32,7 @@ import { CustomMetric } from '../config'
                         <div class="progress-bar-container">
                             <div class="progress-bar" [style.width.%]="currentStats.mem" [style.background-color]="getMemColor()"></div>
                         </div>
-                        <div class="stat-value">{{currentStats.mem | number:'1.0-0'}}%</div>
+                        <div class="stat-value">{{currentStats.mem | number:'1.0-0'}}%<span class="mem-detail" *ngIf="currentStats.memTotal > 0"> ({{formatBytes(currentStats.memUsed)}}/{{formatBytes(currentStats.memTotal)}})</span></div>
                     </div>
                 </div>
                 <div class="stat-separator"></div>
@@ -74,11 +74,11 @@ import { CustomMetric } from '../config'
                 <div class="stat-section net-section">
                     <div class="stat-label">{{ 'NET' | translate }}</div>
                     <div class="net-container">
-                        <div class="net-row download">
-                            <span>↓</span> <span class="net-value">{{ formatSpeed(currentStats.netRx) }}</span>
-                        </div>
                         <div class="net-row upload">
                             <span>↑</span> <span class="net-value">{{ formatSpeed(currentStats.netTx) }}</span>
+                        </div>
+                        <div class="net-row download">
+                            <span>↓</span> <span class="net-value">{{ formatSpeed(currentStats.netRx) }}</span>
                         </div>
                     </div>
                 </div>
@@ -109,9 +109,10 @@ import { CustomMetric } from '../config'
         .progress-bar-container { height: 6px; background-color: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; width: 60px; }
         .progress-bar { height: 100%; transition: width 0.3s ease, background-color 0.3s ease; border-radius: 3px; }
         .stat-value { font-family: monospace; font-size: 12px; color: rgba(255,255,255,0.9); line-height: 1.4; white-space: nowrap; text-align: left; }
+        .mem-detail { font-size: 10px; color: rgba(255,255,255,0.65); }
         .stat-separator { width: 1px; min-height: 16px; background-color: rgba(255,255,255,0.2); margin: 0 2px; align-self: center; flex: 0 0 1px; }
-        .net-section { min-width: 120px; margin-left: auto; }
-        .net-container { display: flex; flex-direction: column; gap: 4px; font-family: monospace; font-size: 10px; align-items: flex-start; }
+        .net-section { min-width: 160px; margin-left: auto; }
+        .net-container { display: flex; flex-direction: row; gap: 10px; font-family: monospace; font-size: 10px; align-items: center; }
         .net-row { white-space: nowrap; display: flex; align-items: center; gap: 4px; line-height: 1.2; }
         .net-value { display: inline-block; min-width: 60px; text-align: left; }
         .download { color: #2ecc71; }
@@ -122,7 +123,7 @@ import { CustomMetric } from '../config'
 export class ServerStatsBottomBarComponent implements OnInit, OnDestroy {
     visible = false
     loading = true
-    currentStats: any = { cpu: 0, mem: 0, disk: 0, netRx: 0, netTx: 0, custom: [] }
+    currentStats: any = { cpu: 0, mem: 0, disk: 0, netRx: 0, netTx: 0, custom: [], memUsed: 0, memTotal: 0 }
     customMetrics: CustomMetric[] = []
     
     public styleConfig = { background: 'rgba(20, 20, 20, 0.85)' }
@@ -268,6 +269,14 @@ export class ServerStatsBottomBarComponent implements OnInit, OnDestroy {
         const sizes = ['B/s', 'K/s', 'M/s', 'G/s'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    formatBytes(bytes: number): string {
+        if (bytes <= 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'K', 'M', 'G', 'T'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + sizes[i];
     }
 
     forceUpdate() { this.checkAndFetch() }
