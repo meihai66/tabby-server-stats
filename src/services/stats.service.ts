@@ -7,7 +7,7 @@ import { exec } from 'child_process'
 export class StatsService {
     // 修复：支持 Linux 和 macOS，增强了错误处理和环境兼容性
     // Thanks: https://blog.csdn.net/weixin_41635157/article/details/156060209?spm=1011.2415.3001.5331
-    private baseStatsCommand = `export LC_ALL=C; PATH=$PATH:/usr/bin:/bin:/usr/sbin:/sbin; OS=$(uname -s 2>/dev/null || echo "Linux"); if [ "$OS" = "Darwin" ]; then cpu=$(ps -A -o %cpu | awk '{s+=$1} END {print s}' 2>/dev/null || echo "0"); mem=$(ps -A -o %mem | awk '{s+=$1} END {print s}' 2>/dev/null || echo "0"); disk=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | sed 's/%//' || echo "0"); echo "TABBY-STATS-START $cpu 0 0 $mem $disk"; else stats=$( (grep 'cpu ' /proc/stat; awk 'NR>2 {r+=$2; t+=$10} END{print r, t}' /proc/net/dev; sleep 1; grep 'cpu ' /proc/stat; awk 'NR>2 {r+=$2; t+=$10} END{print r, t}' /proc/net/dev) 2>/dev/null | awk 'NR==1 {t1=$2+$3+$4+$5+$6+$7+$8; i1=$5} NR==2 {rx1=$1; tx1=$2} NR==3 {t2=$2+$3+$4+$5+$6+$7+$8; i2=$5} NR==4 {rx2=$1; tx2=$2} END { dt=t2-t1; di=i2-i1; cpu=(dt<=0)?0:(dt-di)/dt*100; rx=rx2-rx1; tx=tx2-tx1; printf "%.1f %.0f %.0f", cpu, rx, tx }' ); mem=$(free 2>/dev/null | awk 'NR==2{printf "%.2f", $3*100/$2 }'); disk=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | sed 's/%//'); if [ -z "$stats" ]; then stats="0 0 0"; fi; if [ -z "$mem" ]; then mem="0"; fi; if [ -z "$disk" ]; then disk="0"; fi; echo "TABBY-STATS-START $stats $mem $disk"; fi`
+    private baseStatsCommand = `export LC_ALL=C; PATH=$PATH:/usr/bin:/bin:/usr/sbin:/sbin; OS=$(uname -s 2>/dev/null || echo "Linux"); if [ "$OS" = "Darwin" ]; then cpu=$(ps -A -o %cpu | awk '{s+=$1} END {print s}' 2>/dev/null || echo "0"); mem=$(ps -A -o %mem | awk '{s+=$1} END {print s}' 2>/dev/null || echo "0"); disk=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | sed 's/%//' || echo "0"); memTotal=$(sysctl -n hw.memsize 2>/dev/null || echo "0"); pageSize=$(sysctl -n hw.pagesize 2>/dev/null || echo "4096"); memUsed=$(vm_stat 2>/dev/null | awk -v ps="$pageSize" '/wired down/{w=$4} /^Pages active/{a=$3} /compressor/{c=$5} END{gsub(/\./,"",w); gsub(/\./,"",a); gsub(/\./,"",c); printf "%.0f", (w+0+a+0+c+0)*ps}' || echo "0"); if [ -z "$memUsed" ] || [ "$memUsed" = "0" ]; then memUsed=$(echo "$mem $memTotal" | awk '{printf "%.0f", $1/100 * $2}'); fi; echo "TABBY-STATS-START $cpu 0 0 $mem $disk $memUsed $memTotal"; else stats=$( (grep 'cpu ' /proc/stat; awk 'NR>2 {r+=$2; t+=$10} END{print r, t}' /proc/net/dev; sleep 1; grep 'cpu ' /proc/stat; awk 'NR>2 {r+=$2; t+=$10} END{print r, t}' /proc/net/dev) 2>/dev/null | awk 'NR==1 {t1=$2+$3+$4+$5+$6+$7+$8; i1=$5} NR==2 {rx1=$1; tx1=$2} NR==3 {t2=$2+$3+$4+$5+$6+$7+$8; i2=$5} NR==4 {rx2=$1; tx2=$2} END { dt=t2-t1; di=i2-i1; cpu=(dt<=0)?0:(dt-di)/dt*100; rx=rx2-rx1; tx=tx2-tx1; printf "%.1f %.0f %.0f", cpu, rx, tx }' ); mem=$(free 2>/dev/null | awk 'NR==2{printf "%.2f", $3*100/$2 }'); disk=$(df -h / 2>/dev/null | awk 'NR==2{print $5}' | sed 's/%//'); memUsed=$(free -b 2>/dev/null | awk 'NR==2{print $3}' || echo "0"); memTotal=$(free -b 2>/dev/null | awk 'NR==2{print $2}' || echo "0"); if [ -z "$stats" ]; then stats="0 0 0"; fi; if [ -z "$mem" ]; then mem="0"; fi; if [ -z "$disk" ]; then disk="0"; fi; if [ -z "$memUsed" ]; then memUsed="0"; fi; if [ -z "$memTotal" ]; then memTotal="0"; fi; echo "TABBY-STATS-START $stats $mem $disk $memUsed $memTotal"; fi`
     private fetchGuards = new WeakMap<any, boolean>();
 
     constructor(private config: ConfigService) {}
@@ -64,7 +64,7 @@ export class StatsService {
             }
 
             const result: any = {};
-            const match = output.match(/TABBY-STATS-START\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)/);
+            const match = output.match(/TABBY-STATS-START\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)\s+([\d\.]+)(?:\s+([\d\.]+)\s+([\d\.]+))?/);
 
             if (match && match.length >= 6) {
                 result.cpu = parseFloat(match[1]) || 0;
@@ -72,6 +72,8 @@ export class StatsService {
                 result.netTx = parseFloat(match[3]) || 0;
                 result.mem = parseFloat(match[4]) || 0;
                 result.disk = parseFloat(match[5]) || 0;
+                result.memUsed = parseFloat(match[6]) || 0;
+                result.memTotal = parseFloat(match[7]) || 0;
             }
 
             if (customMetrics.length > 0 && output.includes('TABBY-STATS-CUSTOM-START')) {
