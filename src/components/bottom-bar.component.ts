@@ -272,7 +272,7 @@ export class ServerStatsBottomBarComponent implements OnInit, OnDestroy {
     }
 
     formatBytes(bytes: number): string {
-        if (!bytes || bytes === 0) return '0 B';
+        if (bytes <= 0) return '0 B';
         const k = 1024;
         const sizes = ['B', 'K', 'M', 'G', 'T'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));

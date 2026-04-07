@@ -72,8 +72,8 @@ export class StatsService {
                 result.netTx = parseFloat(match[3]) || 0;
                 result.mem = parseFloat(match[4]) || 0;
                 result.disk = parseFloat(match[5]) || 0;
-                result.memUsed = parseFloat(match[6]) || 0;
-                result.memTotal = parseFloat(match[7]) || 0;
+                result.memUsed = match[6] ? parseFloat(match[6]) || 0 : 0;
+                result.memTotal = match[7] ? parseFloat(match[7]) || 0 : 0;
             }
 
             if (customMetrics.length > 0 && output.includes('TABBY-STATS-CUSTOM-START')) {
